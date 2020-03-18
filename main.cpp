@@ -178,7 +178,6 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
             f[0][0][t][k] = 0;
     f[0][0][0][MAX_HU_VALUE + 1] = 1;
 
-    printf("init:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
     //dp
     int branch_choice_num = 1;
     for (int i = 1; i <= 34; ++i) {
@@ -221,7 +220,6 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
             }
         }
     }
-    printf("calc:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
     /*
     for (int p = 1; p < branch_choice_num; ++p) {
         int nw = 34 & 1;
@@ -344,8 +342,17 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
             if(cnt < min_cnt || (cnt == min_cnt && hand_cnts[card] >= hand_cnt)) min_cnt = cnt, real_best_card = card, hand_cnt = hand_cnts[card];
         }
     }*/
-    printf("rest:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
-    return real_best_card;
+    int choice = real_best_card;
+    fprintf(fout,"%d",choice);
+    fprintf(flog,"%d ,",choice);
+    fprintf(flog, "%3s\n", mname[choice]);
+    printf("%3s\n", mname[choice]);
+    int b_close_to_hu = 100;
+    for (int p = 1; p < branch_choice_num; ++p) {
+        int card = hand_choices[p - 1];
+        b_close_to_hu = min(b_close_to_hu, close_to_hu[card]);
+    }
+    return b_close_to_hu;
 }
 int main() {
     clock_t start = clock();
@@ -355,7 +362,6 @@ int main() {
 
     FILE* fdp = fopen("automation0.txt", "r");
     fscanf(fdp,"%d",&tot);
-    printf("tot:%d\n",tot);
     for(int i = 1; i <= tot; ++i){
         for (int ci = 0; ci < 5; ++ci) {
             for (int cj = 0; cj < CHILD_NUM; ++cj) {
@@ -364,7 +370,6 @@ int main() {
         }
     }
     fclose(fdp);
-    printf("init0:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
 
     fin = fopen("input.txt", "r");
     fout = fopen("output.txt", "w");
@@ -400,16 +405,16 @@ int main() {
     fprintf(flog,"\n");
     printf("\n");
 
+    printf("wall: ");
+    for (int i = 0; i < 34; ++ i){if(known_remain_cnt[i] == 0) printf("%3s, ", mname[i]);}
+    printf("\nchance: ");
+    for (int i = 0; i < 34; ++ i){if(known_remain_cnt[i] == 1) printf("%3s, ", mname[i]);}
+    printf("\n");
+
     int round = 18 - rest_num / 4;//start with 69 -> 1.end with 0 - 18.
-    printf("init:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
-    int choice = decide(hand_cnt, known_remain_cnt,dora,round);
-    printf("calc:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
-    fprintf(fout,"%d",choice);
-    fprintf(flog,"%d ,",choice);
-    fprintf(flog, "%3s\n", mname[choice]);
-    printf("%3s\n", mname[choice]);
+    int b_close_to_hu = decide(hand_cnt, known_remain_cnt,dora,round);
     fclose(fout);
     fclose(flog);
 
-    return 0;
+    return b_close_to_hu;
 }
