@@ -176,46 +176,30 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     for (int t = 0; t < f_len3; ++t)
         for (int k = 0; k < tot; ++k)
             f[0][0][t][k] = 0;
-    f[0][0][0][MAX_HU_VALUE + 1] = 1;
+    for (int p = 0; p < choice_num; ++p) {
+        f[p][0][0][MAX_HU_VALUE + 1] = 1;
+    }
 
     //dp
-    int branch_choice_num = 1;
     for (int i = 1; i <= 34; ++i) {
         int nw = i & 1;
-        for (int p = 0; p <= branch_choice_num; ++p) {
+        for (int p = 0; p <= choice_num; ++p) {
             for (int t = 0; t < f_len3; ++t)
                 for (int k = 0; k < MX; ++k)
                     f[p][nw][t][k] = 0;
         }
-        for (int p = 0; p <= branch_choice_num; ++p) {
+        for (int p = 0; p < choice_num; ++p) {
             for (int j = min(remaining_cards, f_len3 - 5); j >= 0; --j) {
-                for (int k = 1; k < tot; ++k) {
-                    if ((p == branch_choice_num && hand_choices[branch_choice_num - 1] == i - 1) ||
-                        f[p][nw ^ 1][j][k] > 0) {
+                for (int k = 1; k <= tot; ++k) {
+                    if (f[p][nw ^ 1][j][k] > 0) {
                         for (int t = known_remain_cnt[i - 1]; t >= 0; --t) {
                             int piece = (i > 27 ? 9 : i % 9);
-                            if (p < branch_choice_num) {
-                                if(dppath[k][hand_cnts[i - 1] + t][piece] < 0 || dppath[k][hand_cnts[i - 1] + t][piece] > tot)printf("error!");
-                                f[p][nw][j + t][dppath[k][hand_cnts[i - 1] + t][piece]] +=
-                                        f[p][nw ^ 1][j][k] * C[known_remain_cnt[i - 1]][t];
-                            }
-                            if (p == branch_choice_num) {
-                                f[p][nw][j + t][dppath[k][hand_cnts[i - 1] - 1 + t][piece]] +=
-                                        f[0][nw ^ 1][j][k] * C[known_remain_cnt[i - 1]][t];
-                            }
+                            int dpnext = dppath[k][hand_cnts[i - 1] + t - ((i - 1) == hand_choices[p] ? 1 : 0)][piece];
+                            if(dpnext<=0 || dpnext>tot)printf("%d %d\n",dpnext,tot);
+                            assert(dpnext>0 && dpnext<=tot);
+                            f[p][nw][j + t][dpnext] += f[p][nw ^ 1][j][k] * C[known_remain_cnt[i - 1]][t];
                         }
                     }
-                }
-            }
-        }
-        if (hand_choices[branch_choice_num - 1] == i - 1) {
-            ++branch_choice_num;
-        }
-            //-debug
-        else {
-            for (int j = min(remaining_cards, f_len3 - 1); j >= 0; --j) {
-                for (int k = 1; k <= MAX_HU_VALUE; ++k) {
-                    assert(f[branch_choice_num][nw][j][k] == 0);
                 }
             }
         }
@@ -230,8 +214,8 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     printf("seven:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
      */
     //+debug
-    for (int p = 0; p < branch_choice_num; ++p) {
-        fprintf(flog, "\n%3s,%d", p == 0 ? "   " : mname[hand_choices[p - 1]], p == 0 ? 0 : hand_cnts[hand_choices[p - 1]]);
+    for (int p = 0; p < choice_num; ++p) {
+        fprintf(flog, "\n%3s,%d", mname[hand_choices[p]], hand_cnts[hand_choices[p]]);
         for (int j = 1; j <= MAX_HU_VALUE; ++j) {
             fprintf(flog, "\n f[%d],", j);
             for (int i = 1; i <= f_len3 - 5; ++i) {
@@ -246,8 +230,8 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     double expectance[43] = {}, success[43] = {};
     int close_to_hu[43] = {};
     int close_to_hu_min = 100;
-    for (int p = 1; p < branch_choice_num; ++p) {
-        int card = hand_choices[p - 1];
+    for (int p = 0; p < choice_num; ++p) {
+        int card = hand_choices[p];
         for (int nw = 34 & 1, i = 1; i <= f_len3 - 5; ++i) {
             //dora penalty
             int dora_count = 0, dora_penalty = 0;
@@ -277,8 +261,6 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     }
 
 
-    //find best
-    assert(choice_num == branch_choice_num - 1);
 
     //best expectance
     int real_best_card = 0;
@@ -287,14 +269,14 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     int best_card = 0;
     int max_card_cnt = 0;
     int maxp = 0;
-    for (int l = 1; l < branch_choice_num; ++l) {
+    for (int l = 0; l < choice_num; ++l) {
         max_exp = -100;
         suc = 0;
         best_card = 0;
         max_card_cnt = 0;
         maxp = 0;
-        for (int p = 1; p < branch_choice_num; ++p) {
-            int card = hand_choices[p - 1];
+        for (int p = 0; p < choice_num; ++p) {
+            int card = hand_choices[p];
             int card_cnt = 4 - (known_remain_cnt[card] + hand_cnts[card]);//cards on table
             if (expectance[p] > max_exp)
                 max_exp = expectance[p], best_card = card, suc = success[p], max_card_cnt = card_cnt, maxp = p;
@@ -314,10 +296,10 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
         for (int j = 1; j <= MAX_HU_VALUE; ++j) {
             ting_card_cnt += f[maxp][34 & 1][1][j];
         }
-
+        /*
         if (close_to_hu[best_card] == 1) {
-            for (int p = 1; p <= branch_choice_num; ++p) {
-                int card = hand_choices[p - 1];
+            for (int p = 0; p < choice_num; ++p) {
+                int card = hand_choices[p];
                 unsigned long long sum = 0;
                 for (int j = 1; j <= MAX_HU_VALUE; ++j) {
                     sum += f[p][34 & 1][1][j];
@@ -325,11 +307,12 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
                 if (sum > ting_card_cnt) ting_card_cnt = sum, best_card = card;
             }
         }
+         */
         printf("%lf %lf %d ", max_exp, suc, close_to_hu[best_card]);
         printf("%3s\n", mname[best_card]);
         expectance[maxp] = 0;
         success[maxp] = 0;
-        if(l==1) real_best_card = best_card;
+        if(l==0) real_best_card = best_card;
     }
     //safe
     /*
@@ -348,8 +331,8 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     fprintf(flog, "%3s\n", mname[choice]);
     printf("%3s\n", mname[choice]);
     int b_close_to_hu = 100;
-    for (int p = 1; p < branch_choice_num; ++p) {
-        int card = hand_choices[p - 1];
+    for (int p = 0; p < choice_num; ++p) {
+        int card = hand_choices[p];
         b_close_to_hu = min(b_close_to_hu, close_to_hu[card]);
     }
     return b_close_to_hu;
