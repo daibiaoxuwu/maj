@@ -3,7 +3,6 @@
 #include<map>
 #include <ctime>
 #include <vector>
-#include <cassert>
 FILE* fin, *fout, *flog;
 inline void maxer(int &x, int y) { if (y > x) x = y; }
 inline int min(int a, int b) { return a < b ? a : b; }
@@ -11,9 +10,12 @@ inline int max(int a, int b) { return a > b ? a : b; }
 const double round_prob[19] = {1.000000, 1.000000, 0.999708, 0.998029, 0.991947, 0.976532, 0.946340, 0.897968, 0.831425, 0.750198, 0.660036, 0.567684, 0.479381, 0.399071, 0.329266, 0.270215, 0.221551, 0.182120, 0.00000};
 const long long C[5][5] = {{1}, {1, 1}, {1, 2, 1}, {1, 3, 3, 1}, {1, 4, 6, 4, 1}};
 const char* mname[]={" 1W", " 2W", " 3W", " 4W", " 5W", " 6W", " 7W", " 8W", " 9W", " 1B", " 2B", " 3B", " 4B", " 5B", " 6B", " 7B", " 8B", " 9B", " 1T", " 2T", " 3T", " 4T", " 5T", " 6T", " 7T", " 8T", " 9T", "EST", "STH", "WST", "NTH", "BAI", " FA", "ZHO"};
-const int f_len3 = 15, MX = 16000,MAX_HU_VALUE = 6,CHILD_NUM = 10;
+const int f_len3 = 15, MX = 16000,MAX_HU_VALUE = 1,CHILD_NUM = 10;
 unsigned long long f[16][2][f_len3][MX];
-int dppath[MX][5][CHILD_NUM];
+double fsum[16][3][2][5][f_len3];
+int dppath[MX][5];
+int dpface[MX][2];
+double result[f_len3][16];
 double fact[136];
 int tot;
 void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int k){
@@ -22,7 +24,6 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
     for (int i = 0; i < 34; ++i) {
         if(hand_cnts[i]>=2) double_cnt++;
     }
-//    if(double_cnt < 4) return;
     int remaining_cards = 0;
     for (int i = 0; i < 34; ++i) remaining_cards += known_remain_cnt[i];
     int hand_remain[5]={}, rest_remain[5]={};
@@ -36,46 +37,18 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
         }
     }
     auto* starter = new std::vector<int>();
-    for (int j = 0; j < 5; ++j) starter->push_back(hand_remain[j]);
-    for (int j = 0; j < 5; ++j) starter->push_back(rest_remain[j]);
+    for (int j : hand_remain) starter->push_back(j);
+    for (int j : rest_remain) starter->push_back(j);
     std::map<std::vector<int>, long long int> Hash[2];
     Hash[1][*starter] = 1;
-    long long int lstsum = 0;
     long long int penalty = 1;
     for (int j = 1; j <= min(remaining_cards, f_len3 - 5); ++j){
-//        printf("seven:%d %d %d %d from %llu ",p,nw,j,k,f[p][nw][j][k]);
-//        f[p][nw][j][k] += lstsum * (remaining_cards - j + 1) / penalty;
-//        printf("to %llu\n",f[p][nw][j][k]);
         int nw2 = j & 1;
         Hash[nw2 ^ 1].clear();
-        //debug
-        long long int tsum = 0;
-        for (const auto thisvec : Hash[nw2]) {
-            tsum += thisvec.second;
-        }
-        long long int tsum2 = 1;
-        for (int l = 1; l < j; ++l) {
-            tsum2 *= remaining_cards - (l - 1);
-        }
-//        printf("%lld %lld %lld %lld\n",tsum,tsum2,tsum2 - tsum, lstsum);
-        assert(tsum2 - tsum == lstsum);
-        lstsum *= remaining_cards - j + 1;
-        //-debug
         for (const auto thisvec : Hash[nw2]) {
             if(thisvec.second == 0) continue;
-            //debug
-            long long int ttst = 0;
-            long long int ts = 0;
-            for (int i = 0; i < 5; ++i) ts += thisvec.first[i] * i;
-            for (int i = 0; i < 5; ++i) ts += thisvec.first[i + 5] * i;
-            assert(ts == remaining_cards - (j - 1));
-
             int mink;
-            for (int k = 0; k < 10; ++k) {
-//                printf("++%d ", thisvec.first[k]);
-            }
             for (mink = 0; mink < 5 && thisvec.first[mink] == 0; ++mink);
-            assert(mink < 5);
             if(mink == 5) continue;
             //add a pair
             for (int i = 1; i < 5; ++i) {
@@ -85,38 +58,27 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
                 (*newvec)[i] -= 1;
                 (*newvec)[i + 5 - 1] += 1;
 
-                for (int k = 0; k < 10; ++k) {
-//                    printf("--%d ",(*newvec)[k]);
-                }
                 int mink2;
                 for (mink2 = 0; mink2 < 5 && (*newvec)[mink2] == 0; ++mink2);
                 if(mink2 < 5) {
-                    assert((*newvec)[mink2] > 0);
                     (*newvec)[mink2] -= 1;
                     (*newvec)[mink2 + 5] += 1;
                 }
 
                 int sum = 0;
                 for (int k = 0; k < 5; ++k) sum += thisvec.first[k];
-                assert((sum & 1) == 1);
 
                 if(sum <= 2){
                     f[p][nw][j][k] += i * thisvec.first[i] * thisvec.second / penalty;
-                    lstsum += i * thisvec.first[i] * thisvec.second;
-                    ttst += i * thisvec.first[i];
-//                    printf("2:%lld, %d\n",ttst,remaining_cards- (j-1));
                 } else {
                     if (Hash[nw2 ^ 1].count(*newvec) == 0)
                         Hash[nw2 ^ 1][*newvec] = i * thisvec.first[i] * thisvec.second;
                     else
                         Hash[nw2 ^ 1][*newvec] += i * thisvec.first[i] * thisvec.second;
-                    ttst += i * thisvec.first[i];
-//                    printf("3:%lld, %d\n",ttst,remaining_cards- (j-1));
                 }
             }
             //add better hands
             for (int i = 1; i <= mink; ++i) {
-                assert(thisvec.first[i + 5] >= 0);
                 if(thisvec.first[i + 5] <= 0) continue;
                 auto *newvec = new std::vector<int>();
                 for (int k = 0; k < 10; ++k) newvec->push_back(thisvec.first[k]);
@@ -127,20 +89,15 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
                 } else {
                     Hash[nw2 ^ 1][*newvec] += thisvec.first[i + 5] * i * thisvec.second;
                 }
-//                printf("40:%lld,%d,%d",ttst,i,thisvec.first[i + 5]);
-                ttst += i * thisvec.first[i + 5];
-//                printf("4:%lld, %d,%d\n",ttst,remaining_cards- (j-1),i);
             }
 
             for (int i = mink + 1; i < 5; ++i) {
-                assert(thisvec.first[i + 5] >= 0);
                 if(thisvec.first[i + 5] <= 0) continue;
                 auto *newvec = new std::vector<int>();
-                for (int k = 0; k < 10; ++k) newvec->push_back(thisvec.first[k]);
+                for (int r = 0; r < 10; ++r) newvec->push_back(thisvec.first[r]);
                 (*newvec)[i + 5] -= 1;
                 (*newvec)[i - 1] += 1;
                 (*newvec)[mink + 5] += 1;
-                assert((*newvec)[mink] > 0);
                 (*newvec)[mink] -= 1;
 
                 if(Hash[nw2 ^ 1].count(*newvec) == 0){
@@ -148,11 +105,7 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
                 } else {
                     Hash[nw2 ^ 1][*newvec] += thisvec.first[i + 5] * i * thisvec.second;
                 }
-                ttst += i * thisvec.first[i + 5];
-//                printf("5:%lld, %d\n",ttst,remaining_cards- (j-1));
             }
-//            printf("%lld, %d\n",ttst,remaining_cards- (j-1));
-            assert(ttst == remaining_cards - (j - 1));
         }
         penalty *= j;
     }
@@ -166,44 +119,113 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     int remaining_cards = 0;
     for (int i = 0; i < 34; ++i) remaining_cards += known_remain_cnt[i];
 
-    int choice_num = 0;
-    int hand_choices[34]={};
-    for (int temp = 0; temp < 34; ++temp) {
-        if (hand_cnts[temp] > 0) hand_choices[choice_num++] = temp;
-    }
+
+    int tot_branch_choice_num = 0;
+    for (int s = 0; s < 3; ++s) {
 
     //dp:initialize
-    for (int t = 0; t < f_len3; ++t)
-        for (int k = 0; k < tot; ++k)
-            f[0][0][t][k] = 0;
-    for (int p = 0; p < choice_num; ++p) {
-        f[p][0][0][MAX_HU_VALUE + 1] = 1;
-    }
+        //unsigned long long fsum[16][2][5][f_len3];
 
-    //dp
-    for (int i = 1; i <= 34; ++i) {
-        int nw = i & 1;
-        for (int p = 0; p <= choice_num; ++p) {
-            for (int t = 0; t < f_len3; ++t)
-                for (int k = 0; k < MX; ++k)
-                    f[p][nw][t][k] = 0;
+        for (int t = 0; t < f_len3; ++t)
+            for (int k = 0; k < tot; ++k)
+                f[0][0][t][k] = 0;
+
+        f[0][0][0][2] = 1;
+
+        //   printf("\tinit:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
+        //dp
+        int branch_choice_num = 1;
+        for (int i = 1; i <= 9; ++i) {
+            int nw = i & 1;
+            for (int p = 0; p <= branch_choice_num; ++p) {
+                for (int t = 0; t < f_len3; ++t)
+                    for (int k = 0; k < MX; ++k)
+                        f[p][nw][t][k] = 0;
+            }
+            for (int p = 0; p <= branch_choice_num; ++p) {
+                for (int j = min(remaining_cards, f_len3 - 5); j >= 0; --j) {
+                    for (int k = 1; k < tot; ++k) {
+                        if ((p == branch_choice_num && hand_cnts[s * 9 + i - 1] > 0) ||
+                            f[p][nw ^ 1][j][k] > 0) {
+                            for (int t = known_remain_cnt[s * 9 + i - 1]; t >= 0; --t) {
+                                if (p < branch_choice_num) {
+                                    if (dppath[k][hand_cnts[s * 9 + i - 1] + t] < 0 ||
+                                        dppath[k][hand_cnts[s * 9 + i - 1] + t] > tot)
+                                        printf("error!");
+                                    f[p][nw][j + t][dppath[k][hand_cnts[s * 9 + i - 1] + t]] +=
+                                            f[p][nw ^ 1][j][k] * C[known_remain_cnt[s * 9 + i - 1]][t];
+                                }
+                                if (p == branch_choice_num) {
+                                    f[p][nw][j + t][dppath[k][hand_cnts[s * 9 + i - 1] - 1 + t]] +=
+                                            f[0][nw ^ 1][j][k] * C[known_remain_cnt[s * 9 + i - 1]][t];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (hand_cnts[s * 9 + i - 1] > 0) {
+                ++branch_choice_num;
+            }
         }
-        for (int p = 0; p < choice_num; ++p) {
-            for (int j = min(remaining_cards, f_len3 - 5); j >= 0; --j) {
-                for (int k = 1; k <= tot; ++k) {
-                    if (f[p][nw ^ 1][j][k] > 0) {
-                        for (int t = known_remain_cnt[i - 1]; t >= 0; --t) {
-                            int piece = (i > 27 ? 9 : i % 9);
-                            int dpnext = dppath[k][hand_cnts[i - 1] + t - ((i - 1) == hand_choices[p] ? 1 : 0)][piece];
-                            if(dpnext<=0 || dpnext>tot)printf("%d %d\n",dpnext,tot);
-                            assert(dpnext>0 && dpnext<=tot);
-                            f[p][nw][j + t][dpnext] += f[p][nw ^ 1][j][k] * C[known_remain_cnt[i - 1]][t];
+        int nw = 9 & 1;   
+        for (int p = 1; p <= branch_choice_num; ++p) {
+            for (int t = 0; t < f_len3 - 5; ++t)
+                for (int k = 0; k < MX; ++k)
+                    for (int i = 0; i < 2; ++i) {
+                        fsum[p - 1 + tot_branch_choice_num][s][i][dpface[k][i]][t] += (double)f[p][nw][t][k];
+//                        if(f[p][nw][t][k] > 0 && p-1+tot_branch_choice_num>0 && s == 1)printf("%d %d %d %d %d %lld\n",p-1+tot_branch_choice_num,s, i,dpface[k][i],t,f[p][nw][t][k]);
+                    }
+        }
+        tot_branch_choice_num += branch_choice_num - 1;
+        printf("t:%d\n",tot_branch_choice_num);
+    }
+    for (int s = 0; s < 3; ++s) {
+
+        for (int i1 = 0; i1 < 2; ++i1) {
+            for (int j1 = 0; j1 < 3; ++j1) {
+                if (fsum[1][s][i1][j1][3] > 0)printf("%d %d %d\n",s,i1,j1);
+            }
+        }
+    }
+    for (int n = 0; n < tot_branch_choice_num; ++n) {
+        for (int t = 0; t < f_len3 - 5; ++t) {
+            int m[3];
+            for (m[0] = 0; m[0] <= 4; ++m[0]) {
+                for (m[1] = 0; m[1] <= 4; ++m[1]) {
+                    for (m[2] = max(0,4 - m[0] - m[1]); m[2] <= 4; ++m[2]) {
+                        for (int qt = 0; qt < 3; ++qt) {
+                            double res = 1;
+                            for (int s = 0; s < 3; ++s) {
+//                                if((t != 0 || n != 0 ) && s == 1 && fsum[n][s][s == qt ? 1 : 0][m[s]][t]> 0)  printf("s:%d res:%lf f:%lf %d %d %d qt:%d t:%d\n",s,res,fsum[n][s][s == qt ? 1 : 0][m[s]][t],m[0],m[1],m[2],qt,t);
+//                                if((t != 0 || n != 0 ) && s == 1 && res > 0)  printf("-----------------------------------------------------------s:%d res:%lf f:%lf %d %d %d qt:%d t:%d\n",s,res,fsum[n][s][s == qt ? 1 : 0][m[s]][t],m[0],m[1],m[2],qt,t);
+                                res *= fsum[n][s][s == qt ? 1 : 0][m[s]][t];
+//                                if( fsum[n][s][s == qt ? 1 : 0][m[s]][t] > 0 && s > 0) printf("%lf\n",fsum[n][s][s == qt ? 1 : 0][m[s]][t]);
+                            }
+                            result[t][n] += res;
+                            //if(result[t][n]!=0)printf("%d %d\n",t,n);
                         }
                     }
                 }
             }
         }
     }
+    int p = 1;
+    double bestval = 0; int bestc = 0;
+    for (int l = 0; l < 34; ++l) {
+        if(hand_cnts[l]==0)continue;
+        double val = 0;
+        for (int t = 1; t <= f_len3 - 5; ++t) {
+            double prob =
+                    (round_prob[min(t - 1 + round, 18)] - round_prob[min(t + round, 18)]) / round_prob[min(round, 18)];
+            printf("%lf %lf\n",prob,result[t-1][p]);
+            val += result[t - 1][p] * prob;
+        }
+        if(val>bestval)bestval=val,bestc=l;
+        p++;
+    }
+    printf("\tcalc:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
+    return bestc;
     /*
     for (int p = 1; p < branch_choice_num; ++p) {
         int nw = 34 & 1;
@@ -211,28 +233,20 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
         seven(hand_cnts, known_remain_cnt, p, nw, 2);
         hand_cnts[hand_choices[p - 1]]++;
     }
-    printf("seven:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
      */
-    //+debug
-    for (int p = 0; p < choice_num; ++p) {
-        fprintf(flog, "\n%3s,%d", mname[hand_choices[p]], hand_cnts[hand_choices[p]]);
-        for (int j = 1; j <= MAX_HU_VALUE; ++j) {
-            fprintf(flog, "\n f[%d],", j);
-            for (int i = 1; i <= f_len3 - 5; ++i) {
-                fprintf(flog, "%llu,", f[p][34 & 1][i][j]);
-            }
-        }
-    }
-    //-debug
+   // printf("\tseven:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
     //dp over
-
+/*
     //expectance
     double expectance[43] = {}, success[43] = {};
     int close_to_hu[43] = {};
     int close_to_hu_min = 100;
-    for (int p = 0; p < choice_num; ++p) {
-        int card = hand_choices[p];
-        for (int nw = 34 & 1, i = 1; i <= f_len3 - 5; ++i) {
+    int p = 1;
+    for (int card = 0; card < 34; ++card) {
+
+        if(hand_cnts[card] == 0) continue;
+
+        for (int i = 1; i <= f_len3 - 5; ++i) {
             //dora penalty
             int dora_count = 0, dora_penalty = 0;
             for (int j = 0; j < 34; ++j) { dora_count += dora[i]; }
@@ -246,6 +260,7 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
 
             //expectance
             unsigned long long sum = 0, sum2 = 0;
+
             for (int j = 1; j <= MAX_HU_VALUE; ++j) {
                 sum += f[p][nw][i][j] *
                        (j * 2 + 4 + (dora_count - dora_penalty) * 1);//dora value?//compensate for loss of seven
@@ -257,7 +272,7 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
             expectance[p] += (sum * fact[i] * fact[remaining_cards - i] / fact[remaining_cards]) * prob;
             success[p] += (sum2 * fact[i] * fact[remaining_cards - i] / fact[remaining_cards]) * prob;
         }
-        fprintf(flog, "%d %lf %lf\n", p, expectance[p], success[p]);
+        p++;
     }
 
 
@@ -269,19 +284,19 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     int best_card = 0;
     int max_card_cnt = 0;
     int maxp = 0;
-    for (int l = 0; l < choice_num; ++l) {
+    for (int l = 1; l < branch_choice_num; ++l) {
         max_exp = -100;
         suc = 0;
         best_card = 0;
         max_card_cnt = 0;
         maxp = 0;
-        for (int p = 0; p < choice_num; ++p) {
-            int card = hand_choices[p];
+        for (int p = 1; p < branch_choice_num; ++p) {
+            int card = hand_choices[p - 1];
             int card_cnt = 4 - (known_remain_cnt[card] + hand_cnts[card]);//cards on table
             if (expectance[p] > max_exp)
                 max_exp = expectance[p], best_card = card, suc = success[p], max_card_cnt = card_cnt, maxp = p;
         }
-        /*
+
         for (int p = 1; p < branch_choice_num; ++p) {
             int card = hand_choices[p - 1];
             int card_cnt = 4 - (known_remain_cnt[card] + hand_cnts[card]);//cards on table
@@ -290,16 +305,16 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
                        max_exp, max_card_cnt);
                 max_exp = expectance[p] + 0.005, best_card = card, suc = success[p], max_card_cnt = card_cnt, maxp = p;
             }
-        }*/
+        }
         //max ting
         unsigned long long ting_card_cnt = 0;
         for (int j = 1; j <= MAX_HU_VALUE; ++j) {
             ting_card_cnt += f[maxp][34 & 1][1][j];
         }
-        /*
+
         if (close_to_hu[best_card] == 1) {
-            for (int p = 0; p < choice_num; ++p) {
-                int card = hand_choices[p];
+            for (int p = 1; p <= branch_choice_num; ++p) {
+                int card = hand_choices[p - 1];
                 unsigned long long sum = 0;
                 for (int j = 1; j <= MAX_HU_VALUE; ++j) {
                     sum += f[p][34 & 1][1][j];
@@ -307,14 +322,14 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
                 if (sum > ting_card_cnt) ting_card_cnt = sum, best_card = card;
             }
         }
-         */
         printf("%lf %lf %d ", max_exp, suc, close_to_hu[best_card]);
         printf("%3s\n", mname[best_card]);
         expectance[maxp] = 0;
         success[maxp] = 0;
-        if(l==0) real_best_card = best_card;
+        if(l==1) real_best_card = best_card;
     }
     //safe
+    */
     /*
     if(round >= 8 && suc < 0.01){
         printf("safe: ");
@@ -322,20 +337,11 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
         for (int p = 1; p < branch_choice_num; ++p) {
             int card = hand_choices[p - 1];
             int cnt = hand_cnts[card] + known_remain_cnt[card];
+            if (card >= 27 && cnt != 4) cnt -= 1;
             if(cnt < min_cnt || (cnt == min_cnt && hand_cnts[card] >= hand_cnt)) min_cnt = cnt, real_best_card = card, hand_cnt = hand_cnts[card];
         }
     }*/
-    int choice = real_best_card;
-    fprintf(fout,"%d",choice);
-    fprintf(flog,"%d ,",choice);
-    fprintf(flog, "%3s\n", mname[choice]);
-    printf("%3s\n", mname[choice]);
-    int b_close_to_hu = 100;
-    for (int p = 0; p < choice_num; ++p) {
-        int card = hand_choices[p];
-        b_close_to_hu = min(b_close_to_hu, close_to_hu[card]);
-    }
-    return b_close_to_hu;
+
 }
 int main() {
     clock_t start = clock();
@@ -343,49 +349,38 @@ int main() {
     fact[0] = 1;
     for (int i = 1; i <= 136; ++i) fact[i] = fact[i - 1] * i;
 
-    FILE* fdp = fopen("automation0.txt", "r");
+    FILE* fdp = fopen("..\\automation9.txt", "r");
     fscanf(fdp,"%d",&tot);
     for(int i = 1; i <= tot; ++i){
         for (int ci = 0; ci < 5; ++ci) {
-            for (int cj = 0; cj < CHILD_NUM; ++cj) {
-                fscanf(fdp, "%d", &dppath[i][ci][cj]);
-            }
+            fscanf(fdp, "%d", &dppath[i][ci]);
+            fscanf(fdp, "%d", &dpface[i][0]);
+            fscanf(fdp, "%d", &dpface[i][1]);
+            dpface[i][0] -= (dpface[i][0] == 0 ? 0 : 1);
+            dpface[i][1] -= (dpface[i][1] == 0 ? 0 : 1);
         }
     }
     fclose(fdp);
 
     fin = fopen("input.txt", "r");
     fout = fopen("output.txt", "w");
-    flog = fopen("log.csv", "a");
 
     time_t rawtime;
     struct tm * timeinfo;
     time ( &rawtime );
     timeinfo = localtime ( &rawtime );
-    fprintf(flog,"%s,\n", asctime (timeinfo) );
 
     int rest_num; fscanf(fin,"%d", &rest_num);
     int hand_cnt[35]; for (int i = 0; i < 34; ++ i) fscanf(fin, "%d", &hand_cnt[i]); hand_cnt[34]=0;
     int known_remain_cnt[34]; for (int i = 0; i < 34; ++ i) fscanf(fin,"%d", &known_remain_cnt[i]);
     int dora[34]; for (int i = 0; i < 34; ++ i) fscanf(fin,"%d", &dora[i]);
     fclose(fin);
-    fprintf(flog,"%d,\n", rest_num);
 
-    for (int i = 0; i < 34; ++ i){fprintf(flog, "%3s, ", mname[i]);}
-    fprintf(flog, "\n");
-    for (int i = 0; i < 34; ++ i) fprintf(flog, "%d, ", hand_cnt[i]);
-    fprintf(flog, "\n");
-    for (int i = 0; i < 34; ++ i) fprintf(flog,"%d, ", known_remain_cnt[i]);
-    fprintf(flog, "\n");
-    for (int i = 0; i < 34; ++ i) fprintf(flog,"%d, ", dora[i]);
-    fprintf(flog, "\n");
     for (int i = 0; i < 34; ++i) {
         for (int j = 0; j < hand_cnt[i]; ++j) {
-            fprintf(flog, "%3s, ", mname[i]);
             printf("%3s, ", mname[i]);
         }
     }
-    fprintf(flog,"\n");
     printf("\n");
 
     printf("wall: ");
@@ -395,9 +390,9 @@ int main() {
     printf("\n");
 
     int round = 18 - rest_num / 4;//start with 69 -> 1.end with 0 - 18.
-    int b_close_to_hu = decide(hand_cnt, known_remain_cnt,dora,round);
-    fclose(fout);
-    fclose(flog);
+    int choice = decide(hand_cnt, known_remain_cnt,dora,round);
+    fprintf(fout,"%d",choice);
+    printf("%s",mname[choice]);
 
-    return b_close_to_hu;
+    return 0;
 }
