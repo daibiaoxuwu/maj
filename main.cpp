@@ -12,7 +12,7 @@ const long long C[5][5] = {{1}, {1, 1}, {1, 2, 1}, {1, 3, 3, 1}, {1, 4, 6, 4, 1}
 const char* mname[]={" 1m", " 2m", " 3m", " 4m", " 5m", " 6m", " 7m", " 8m", " 9m", " 1p", " 2p", " 3p", " 4p", " 5p", " 6p", " 7p", " 8p", " 9p", " 1s", " 2s", " 3s", " 4s", " 5s", " 6s", " 7s", " 8s", " 9s", "EST", "STH", "WST", "NTH", "BAI", " FA", "ZHO"};
 const int f_len3 = 15, MX = 1000,MAX_HU_VALUE = 1,CHILD_NUM = 10;
 unsigned long long f[16][2][f_len3][MX];
-double fsum[16][3][2][6][f_len3];
+double fsum[16][4][2][6][f_len3];
 int dppath[2][MX][5];
 int dpface[2][MX][2];
 double result[f_len3][16];
@@ -113,7 +113,6 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
 
 
 int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, int round) {
-    round -= 1;
 //    time_t start = clock();
     int hand_cnts[35];
     memcpy(hand_cnts, _hand_cnts, 35 * sizeof(int));
@@ -176,9 +175,9 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
             }
         }
         int nw = 9 & 1;   // 9 & 1 == 7 & 1
-        for (int p = 0; p <= branch_choice_num; ++p) {
+        for (int p = 0; p < branch_choice_num; ++p) {
             for (int t = 0; t < f_len3 - 5; ++t)
-                for (int k = 0; k < MX; ++k)
+                for (int k = 1; k <= tot[dpf]; ++k)
                     for (int i = 0; i < 2; ++i)
                         fsum[(p == 0 ? 0 : p + op)][s][i][dpface[dpf][k][i]][t] += (double)f[p][nw][t][k];
 
@@ -244,15 +243,18 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
         ++p;
     }
     p = 1;
+    printf("r:%d\n",round);
     double bestval = 0; int bestc = -1;
     for (int l = 0; l < 34; ++l) {
         if(hand_cnts[l]==0)continue;
         double val = 0;
         printf("%s ",mname[l]);
+        double prob = 0;
         for (int t = 0; t < f_len3 - 5; ++t) {
-            double prob = round_prob[min(t + round, 18)] / round_prob[min(round - 1, 18)] * fact[t] * fact[remaining_cards - t] / fact[remaining_cards];
-            printf("%lf\t",result[t][p] * prob);
-            val += result[t][p] * prob;
+            double prob2 = result[t][p] * fact[t] * fact[remaining_cards - t] / fact[remaining_cards];
+            printf("%.3lf ",prob2);
+            val += round_prob[min(t + round, 17)] / round_prob[min(round, 17)] * (prob2 - prob);
+            prob = prob2;
         }
         printf("%s %lf\n",mname[l],val);
         if(val>bestval)bestval=val,bestc=l;
@@ -389,9 +391,9 @@ int main() {
         for (int i = 1; i <= tot[k]; ++i) {
             for (int ci = 0; ci < 5; ++ci) {
                 fscanf(fdp, "%d", &dppath[k][i][ci]);
-                fscanf(fdp, "%d", &dpface[k][i][0]);
-                fscanf(fdp, "%d", &dpface[k][i][1]);
             }
+            fscanf(fdp, "%d", &dpface[k][i][0]);
+            fscanf(fdp, "%d", &dpface[k][i][1]);
         }
         fclose(fdp);
 
