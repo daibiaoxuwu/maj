@@ -236,6 +236,7 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
         double prob = 0;
         for (int t = 0; t < f_len3 - 5; ++t) {
             double prob2 = result[t][p] * fact[t] * fact[remaining_cards - t] / fact[remaining_cards];
+            //printf("%lf ",prob2);
             val += round_prob[min(t + round, 18)] / round_prob[min(round, 17)] * (prob2 - prob);
             prob = prob2;
         }
@@ -244,26 +245,32 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
         hand_cnts[l]--;
         seven(hand_cnts, known_remain_cnt, p, nw, 2);
         hand_cnts[l]++;
+        double val2 = 0;
         prob = 0;
         for (int t = 0; t < f_len3 - 5; ++t) {
             double prob2 = sevenval[p][t] * fact[remaining_cards - t] / fact[remaining_cards];
-            val += round_prob[min(t + round, 18)] / round_prob[min(round, 17)] * (prob2 - prob);
+            val2 += 2 * round_prob[min(t + round, 18)] / round_prob[min(round, 17)] * (prob2 - prob);//seven multiply by 2
             prob = prob2;
         }
+        //printf("%3s %lf %lf\n",mname[l], val,val2);
+        val += val2;
 
 
         //dora
         int dora_count = 0, dora_penalty = 0;
         for (int j = 0; j < 34; ++j) { dora_count += dora[j]; }
-        if ((dora[l] >= hand_cnts[l]) && !(l >= 27 && hand_cnts[l] <= 1)) val *= 0.9;
+        if ((dora[l] >= hand_cnts[l]) && !(l >= 27 && hand_cnts[l] <= 1)) val *= 0.85;
         vals.emplace_back(std::make_pair(val,l));
         p++;
     }
     std::sort(vals.begin(),vals.end(),std::greater<>());
-    for (auto i : vals){
-        printf("%s %lf\n",mname[i.second],i.first);
-    }
-    if(vals[0].first > 0) return vals[0].second; else return -1;
+    if(vals[0].first > 0)
+    {
+        for (auto i : vals){
+            printf("%s %lf\n",mname[i.second],i.first);
+        }
+        return vals[0].second;
+    } else return -1;
 }
 
 
@@ -317,8 +324,13 @@ int main() {
 //    printf("\n");
 
     int round = 18 - rest_num / 4;//start with 69 -> 1.end with 0 - 18.
-    int choice = decide(hand_cnt, known_remain_cnt,dora,round);
-    if(choice == -1) printf("zero\n\n"); else printf("%s\n\n",mname[choice]);
-
-    return choice;
+    for (;round > 0;--round) {
+        int choice = decide(hand_cnt, known_remain_cnt, dora, round);
+        if (choice != -1) {
+            printf("%s\n\n", mname[choice]);
+            return choice;
+        }
+    }
+    printf("zero\n\n");
+    return -1;
 }
