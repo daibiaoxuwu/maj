@@ -290,6 +290,10 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
 //            printf("%.3lf ",val);
             prob = prob2;
         }
+        //dora
+        int dora_count = 0, dora_penalty = 0;
+        for (int j = 0; j < 34; ++j) { dora_count += dora[j]; }
+        if ((dora[l] >= hand_cnts[l]) && !(l >= 27 && hand_cnts[l] <= 1)) val *= 1.1;
         vals.emplace_back(std::make_pair(val,l));
         p++;
     }
