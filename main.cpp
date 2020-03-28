@@ -3,6 +3,8 @@
 #include<map>
 #include <ctime>
 #include <vector>
+#include <algorithm>
+
 FILE* fin, *fout, *flog;
 inline void maxer(int &x, int y) { if (y > x) x = y; }
 inline int min(int a, int b) { return a < b ? a : b; }
@@ -268,26 +270,29 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     }
     p = 1;
     printf("r:%d\n",round);
-    double bestval = 0; int bestc = -1;
+    std::vector<std::pair<double, int>> vals;
     for (int l = 0; l < 34; ++l) {
         if(hand_cnts[l]==0)continue;
         double val = 0;
-        printf("%s ",mname[l]);
+//        printf("%s ",mname[l]);
         double prob = 0;
         for (int t = 0; t < f_len3 - 5; ++t) {
             double prob2 = result[t][p] * fact[t] * fact[remaining_cards - t] / fact[remaining_cards];
 //            printf("%.3lf ",prob2);
 //            printf("%.0lf ",result[t][p]);
             val += round_prob[min(t + round, 18)] / round_prob[min(round, 17)] * (prob2 - prob);
-            printf("%.3lf ",val);
+//            printf("%.3lf ",val);
             prob = prob2;
         }
-        printf("%s %lf\n",mname[l],val);
-        if(val>bestval)bestval=val,bestc=l;
+        vals.emplace_back(std::make_pair(val,l));
         p++;
     }
+    std::sort(vals.begin(),vals.end(),std::greater<>());
+    for (auto i : vals){
+        printf("%s %lf\n",mname[i.second],i.first);
+    }
 //    printf("\tcalc:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
-    return bestc;
+    if(vals[0].first > 0) return vals[0].second; else return -1;
     /*
     for (int p = 1; p < branch_choice_num; ++p) {
         int nw = 34 & 1;
@@ -412,8 +417,8 @@ int main() {
     for (int i = 1; i <= 136; ++i) fact[i] = fact[i - 1] * i;
 
     //now no hu node 1, start from 2, 0 and 1 are useless, start from 1
-    FILE* fdp = fopen("..\\automation9.txt", "r");
-    for (int k = 0; k < 2; ++k, fdp = fopen("..\\automation7.txt", "r")) {
+    FILE* fdp = fopen("automation79.txt", "r");
+    for (int k = 0; k < 2; ++k) {
         fscanf(fdp, "%d", &tot[k]);
         for (int i = 1; i <= tot[k]; ++i) {
             for (int ci = 0; ci < 5; ++ci) {
@@ -422,12 +427,10 @@ int main() {
             fscanf(fdp, "%d", &dpface[k][i][0]);
             fscanf(fdp, "%d", &dpface[k][i][1]);
         }
-        fclose(fdp);
-
     }
+    fclose(fdp);
 
     fin = fopen("input.txt", "r");
-    fout = fopen("output.txt", "w");
 
     time_t rawtime;
     struct tm * timeinfo;
@@ -455,8 +458,7 @@ int main() {
 
     int round = 18 - rest_num / 4;//start with 69 -> 1.end with 0 - 18.
     int choice = decide(hand_cnt, known_remain_cnt,dora,round);
-    fprintf(fout,"%d",choice);
-    printf("%s",mname[choice]);
+    if(choice == -1) printf("zero\n\n"); else printf("%s\n\n",mname[choice]);
 
     return choice;
 }
