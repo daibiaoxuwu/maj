@@ -165,7 +165,6 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
 
 
 int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, int round) {
-//    time_t start = clock();
     int hand_cnts[35];
     memcpy(hand_cnts, _hand_cnts, 35 * sizeof(int));
     int remaining_cards = 0;
@@ -209,11 +208,6 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
                 }
             }
             if (hand_cnts[s * 9 + i - 1] > 0) {
-//                for (int s0 = 0; s0 < s; ++s0)
-//                    for (int t = 0; t < f_len3 - 5; ++t)
-//                        for (int k = 0; k < 5; ++k)
-//                            for (int i = 0; i < 2; ++i)
-//                                fsum[branch_choice_num][s0][i][k][t] = fsum[0][s0][i][k][t];
                 ++branch_choice_num;
             }
         }
@@ -227,35 +221,6 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
         }
         op += (branch_choice_num-1);
     }
-    /*
-    for (int s = 0; s < 4; ++s)
-        for (int i1 = 0; i1 < 2; ++i1)
-            for (int j1 = 0; j1 < 6; ++j1)
-                if (fsum[0][s][i1][j1][0] > 0) {
-                    printf("%d %d %d\n", s, i1, j1);
-                }
-    printf("--\n");
-    for (int s = 0; s < 4; ++s)
-        for (int i1 = 0; i1 < 2; ++i1)
-            for (int j1 = 0; j1 < 6; ++j1)
-                if (fsum[0][s][i1][j1][1] > 0) {
-                    printf("%d %d %d\n", s, i1, j1);
-                }
-    printf("--\n");
-    for (int s = 0; s < 4; ++s)
-        for (int i1 = 0; i1 < 2; ++i1)
-            for (int j1 = 0; j1 < 3; ++j1)
-                    if (fsum[4][s][i1][j1][1] > 0) {
-                        printf("%d %d %d\n", s, i1, j1);
-                    }
-    printf("--\n");
-    for (int s = 0; s < 4; ++s)
-        for (int i1 = 0; i1 < 2; ++i1)
-            for (int j1 = 0; j1 < 6; ++j1)
-                if (fsum[9][s][i1][j1][1] > 0) {
-                    printf("%d %d %d\n", s, i1, j1);
-                }
-                */
     int p = 1;
     for (int n = 0; n < 34; ++n) {
         if(hand_cnts[n] == 0)continue;
@@ -315,12 +280,12 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     for (int l = 0; l < 34; ++l) {
         if(hand_cnts[l]==0)continue;
         double val = 0;
-        printf("\n%s ",mname[l]);
+//        printf("\n%s ",mname[l]);
         double prob = 0;
         for (int t = 0; t < f_len3 - 5; ++t) {
             double prob2 = result[t][p] * fact[t] * fact[remaining_cards - t] / fact[remaining_cards];
 //            printf("%.3lf ",prob2);
-            printf("%.0lf ",result[t][p]);
+//            printf("%.0lf ",result[t][p]);
             val += round_prob[min(t + round, 18)] / round_prob[min(round, 17)] * (prob2 - prob);
 //            printf("%.3lf ",val);
             prob = prob2;
@@ -332,7 +297,6 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     for (auto i : vals){
         printf("%s %lf\n",mname[i.second],i.first);
     }
-//    printf("\tcalc:%lf ms\n",(double)(clock()-start)*1000/CLOCKS_PER_SEC); start=clock();
     if(vals[0].first > 0) return vals[0].second; else return -1;
 }
 

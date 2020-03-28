@@ -43,7 +43,6 @@ if (game) {
         last_self_deal = true;
 
         if (r.operation && r.operation.operation_list && r.operation.operation_list.length > 0) {
-        if (r.operation && r.operation.operation_list && r.operation.operation_list.length > 0){
             if (view.ViewPlayer_Me.Inst.hand.length > 0) {
 
                 var hasLiqi = false;
