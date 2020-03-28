@@ -29,7 +29,6 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
     for (int i = 0; i < 34; ++i) {
         if(hand_cnts[i]>=2) double_cnt++;
     }
-//    if(double_cnt < 4) return;
     int remaining_cards = 0;
     for (int i = 0; i < 34; ++i) remaining_cards += known_remain_cnt[i];
     int hand_remain[5]={}, rest_remain[5]={};
@@ -47,42 +46,14 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
     for (int j : rest_remain) starter->push_back(j);
     std::map<std::vector<int>, long long int> Hash[2];
     Hash[1][*starter] = 1;
-    long long int lstsum = 0;
     long long int penalty = 1;
     for (int j = 1; j <= min(remaining_cards, f_len3 - 5); ++j){
-//        printf("seven:%d %d %d %d from %llu ",p,nw,j,k,f[p][nw][j][k]);
-//        f[p][nw][j][k] += lstsum * (remaining_cards - j + 1) / penalty;
-//        printf("to %llu\n",f[p][nw][j][k]);
         int nw2 = j & 1;
         Hash[nw2 ^ 1].clear();
-        //debug
-        long long int tsum = 0;
-        for (const auto thisvec : Hash[nw2]) {
-            tsum += thisvec.second;
-        }
-        long long int tsum2 = 1;
-        for (int l = 1; l < j; ++l) {
-            tsum2 *= remaining_cards - (l - 1);
-        }
-//        printf("%lld %lld %lld %lld\n",tsum,tsum2,tsum2 - tsum, lstsum);
-        assert(tsum2 - tsum == lstsum);
-        lstsum *= remaining_cards - j + 1;
-        //-debug
         for (const auto thisvec : Hash[nw2]) {
             if(thisvec.second == 0) continue;
-            //debug
-            long long int ttst = 0;
-            long long int ts = 0;
-            for (int i = 0; i < 5; ++i) ts += thisvec.first[i] * i;
-            for (int i = 0; i < 5; ++i) ts += thisvec.first[i + 5] * i;
-            assert(ts == remaining_cards - (j - 1));
-
             int mink;
-            for (int k = 0; k < 10; ++k) {
-//                printf("++%d ", thisvec.first[k]);
-            }
             for (mink = 0; mink < 5 && thisvec.first[mink] == 0; ++mink);
-            assert(mink < 5);
             if(mink == 5) continue;
             //add a pair
             for (int i = 1; i < 5; ++i) {
@@ -92,38 +63,27 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
                 (*newvec)[i] -= 1;
                 (*newvec)[i + 5 - 1] += 1;
 
-                for (int k = 0; k < 10; ++k) {
-//                    printf("--%d ",(*newvec)[k]);
-                }
                 int mink2;
                 for (mink2 = 0; mink2 < 5 && (*newvec)[mink2] == 0; ++mink2);
                 if(mink2 < 5) {
-                    assert((*newvec)[mink2] > 0);
                     (*newvec)[mink2] -= 1;
                     (*newvec)[mink2 + 5] += 1;
                 }
 
                 int sum = 0;
                 for (int k = 0; k < 5; ++k) sum += thisvec.first[k];
-                assert((sum & 1) == 1);
 
                 if(sum <= 2){
                     sevenval[p][j] += i * thisvec.first[i] * thisvec.second;
-                    lstsum += i * thisvec.first[i] * thisvec.second;
-                    ttst += i * thisvec.first[i];
-//                    printf("2:%lld, %d\n",ttst,remaining_cards- (j-1));
                 } else {
                     if (Hash[nw2 ^ 1].count(*newvec) == 0)
                         Hash[nw2 ^ 1][*newvec] = i * thisvec.first[i] * thisvec.second;
                     else
                         Hash[nw2 ^ 1][*newvec] += i * thisvec.first[i] * thisvec.second;
-                    ttst += i * thisvec.first[i];
-//                    printf("3:%lld, %d\n",ttst,remaining_cards- (j-1));
                 }
             }
             //add better hands
             for (int i = 1; i <= mink; ++i) {
-                assert(thisvec.first[i + 5] >= 0);
                 if(thisvec.first[i + 5] <= 0) continue;
                 auto *newvec = new std::vector<int>();
                 for (int k = 0; k < 10; ++k) newvec->push_back(thisvec.first[k]);
@@ -134,20 +94,15 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
                 } else {
                     Hash[nw2 ^ 1][*newvec] += thisvec.first[i + 5] * i * thisvec.second;
                 }
-//                printf("40:%lld,%d,%d",ttst,i,thisvec.first[i + 5]);
-                ttst += i * thisvec.first[i + 5];
-//                printf("4:%lld, %d,%d\n",ttst,remaining_cards- (j-1),i);
             }
 
             for (int i = mink + 1; i < 5; ++i) {
-                assert(thisvec.first[i + 5] >= 0);
                 if(thisvec.first[i + 5] <= 0) continue;
                 auto *newvec = new std::vector<int>();
                 for (int r = 0; r < 10; ++r) newvec->push_back(thisvec.first[r]);
                 (*newvec)[i + 5] -= 1;
                 (*newvec)[i - 1] += 1;
                 (*newvec)[mink + 5] += 1;
-                assert((*newvec)[mink] > 0);
                 (*newvec)[mink] -= 1;
 
                 if(Hash[nw2 ^ 1].count(*newvec) == 0){
@@ -155,11 +110,7 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
                 } else {
                     Hash[nw2 ^ 1][*newvec] += thisvec.first[i + 5] * i * thisvec.second;
                 }
-                ttst += i * thisvec.first[i + 5];
-//                printf("5:%lld, %d\n",ttst,remaining_cards- (j-1));
             }
-//            printf("%lld, %d\n",ttst,remaining_cards- (j-1));
-            assert(ttst == remaining_cards - (j - 1));
         }
         penalty *= j;
     }
@@ -280,7 +231,6 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     printf("r:%d\n",round);
     std::vector<std::pair<double, int>> vals;
     for (int l = 0; l < 34; ++l) {
-
         if(hand_cnts[l]==0)continue;
         double val = 0;
         double prob = 0;
