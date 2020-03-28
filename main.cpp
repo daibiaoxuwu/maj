@@ -150,7 +150,7 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
                             f[p][nw ^ 1][j][k] > 0) {
                             for (int t = known_remain_cnt[s * 9 + i - 1]; t >= 0; --t) {
                                 if (p < branch_choice_num) {
-                                    if (dppath[dpf][k][hand_cnts[s * 9 + i - 1] + t] < 0 ||
+                                    if (dppath[dpf][k][hand_cnts[s * 9 + i - 1] + t] <= 0 ||
                                         dppath[dpf][k][hand_cnts[s * 9 + i - 1] + t] > tot[dpf])
                                         printf("error!");
                                     f[p][nw][j + t][dppath[dpf][k][hand_cnts[s * 9 + i - 1] + t]] +=
@@ -225,13 +225,37 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
                             for (t[2] = 0; t[2] + t[1] + t[0] < f_len3 - 5; ++t[2]) {
                                 for (m[3] = max(0, 4 - m[0] - m[1] - m[2]); m[3] <= 4; ++m[3]) {
                                     for (t[3] = 0; t[3] + t[2] + t[1] + t[0] < f_len3 - 5; ++t[3]) {
+                                        //one qt
                                         for (int qt = 0; qt < 4; ++qt) {
                                             double res = 1;
                                             for (int s = 0; s < 4; ++s) {
-                                                res *= fsum[(n / 9 == s ? p : 0)][s][s == qt ? 1 : 0][m[s]+1][t[s]];
+                                                res *= fsum[(n / 9 == s ? p : 0)][s][s == qt ? 1 : 0][m[s] + 1][t[s]];
                                             }
                                             result[t[0] + t[1] + t[2] + t[3]][p] += res;
                                         }
+                                        //minus two qt
+                                        for (int qt2 = 0; qt2 < 3; ++qt2) {
+                                            for (int qt3 = qt2 + 1; qt3 < 4; ++qt3) {
+                                                double res = 1;
+                                                for (int s = 0; s < 4; ++s)
+                                                    res *= fsum[(n / 9 == s ? p : 0)][s][s == qt2 || s == qt3 ? 1 : 0][ m[s] + 1][t[s]];
+                                                result[t[0] + t[1] + t[2] + t[3]][p] -= res;
+                                            }
+                                        }
+                                        //plus three qt
+                                        for (int qt2 = 0; qt2 < 3; ++qt2) {
+                                            double res = 1;
+                                            for (int s = 0; s < 4; ++s) {
+                                                res *= fsum[(n / 9 == s ? p : 0)][s][s == qt2 ? 0 : 1][m[s] + 1][t[s]];
+                                            }
+                                            result[t[0] + t[1] + t[2] + t[3]][p] += res;
+                                        }
+                                        //minus four qt
+                                        double res = 1;
+                                        for (int s = 0; s < 4; ++s) {
+                                            res *= fsum[(n / 9 == s ? p : 0)][s][1][m[s] + 1][t[s]];
+                                        }
+                                        result[t[0] + t[1] + t[2] + t[3]][p] -= res;
                                     }
                                 }
                             }
@@ -252,8 +276,10 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
         double prob = 0;
         for (int t = 0; t < f_len3 - 5; ++t) {
             double prob2 = result[t][p] * fact[t] * fact[remaining_cards - t] / fact[remaining_cards];
-            printf("%.3lf ",prob2);
-            val += round_prob[min(t + round, 17)] / round_prob[min(round, 17)] * (prob2 - prob);
+//            printf("%.3lf ",prob2);
+//            printf("%.0lf ",result[t][p]);
+            val += round_prob[min(t + round, 18)] / round_prob[min(round, 17)] * (prob2 - prob);
+            printf("%.3lf ",val);
             prob = prob2;
         }
         printf("%s %lf\n",mname[l],val);
@@ -385,6 +411,7 @@ int main() {
     fact[0] = 1;
     for (int i = 1; i <= 136; ++i) fact[i] = fact[i - 1] * i;
 
+    //now no hu node 1, start from 2, 0 and 1 are useless, start from 1
     FILE* fdp = fopen("..\\automation9.txt", "r");
     for (int k = 0; k < 2; ++k, fdp = fopen("..\\automation7.txt", "r")) {
         fscanf(fdp, "%d", &tot[k]);
