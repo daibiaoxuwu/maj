@@ -15,6 +15,7 @@ const long long C[5][5] = {{1}, {1, 1}, {1, 2, 1}, {1, 3, 3, 1}, {1, 4, 6, 4, 1}
 const char* mname[]={" 1m", " 2m", " 3m", " 4m", " 5m", " 6m", " 7m", " 8m", " 9m", " 1p", " 2p", " 3p", " 4p", " 5p", " 6p", " 7p", " 8p", " 9p", " 1s", " 2s", " 3s", " 4s", " 5s", " 6s", " 7s", " 8s", " 9s", "EST", "STH", "WST", "NTH", "BAI", " FA", "ZHO"};
 const int f_len3 = 15, MX = 1000,MAX_HU_VALUE = 1,CHILD_NUM = 10;
 unsigned long long f[2][16][f_len3][MX];
+double sevenval[16][f_len3];
 double fsum[16][4][2][6][f_len3];
 int dppath[2][MX][5];
 int dpface[2][MX][2];
@@ -23,6 +24,7 @@ double fact[136];
 int tot[2];
 void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int k){
 
+    memset(sevenval,0,sizeof(double)*16*f_len3);
     int double_cnt = 0;
     for (int i = 0; i < 34; ++i) {
         if(hand_cnts[i]>=2) double_cnt++;
@@ -106,7 +108,7 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
                 assert((sum & 1) == 1);
 
                 if(sum <= 2){
-                    f[nw][p][j][k] += i * thisvec.first[i] * thisvec.second / penalty;
+                    sevenval[p][j] += i * thisvec.first[i] * thisvec.second;
                     lstsum += i * thisvec.first[i] * thisvec.second;
                     ttst += i * thisvec.first[i];
 //                    printf("2:%lld, %d\n",ttst,remaining_cards- (j-1));
@@ -278,22 +280,32 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
     printf("r:%d\n",round);
     std::vector<std::pair<double, int>> vals;
     for (int l = 0; l < 34; ++l) {
+
         if(hand_cnts[l]==0)continue;
         double val = 0;
-//        printf("\n%s ",mname[l]);
         double prob = 0;
         for (int t = 0; t < f_len3 - 5; ++t) {
             double prob2 = result[t][p] * fact[t] * fact[remaining_cards - t] / fact[remaining_cards];
-//            printf("%.3lf ",prob2);
-//            printf("%.0lf ",result[t][p]);
             val += round_prob[min(t + round, 18)] / round_prob[min(round, 17)] * (prob2 - prob);
-//            printf("%.3lf ",val);
             prob = prob2;
         }
+
+        int nw = 1;
+        hand_cnts[l]--;
+        seven(hand_cnts, known_remain_cnt, p, nw, 2);
+        hand_cnts[l]++;
+        prob = 0;
+        for (int t = 0; t < f_len3 - 5; ++t) {
+            double prob2 = sevenval[p][t] * fact[remaining_cards - t] / fact[remaining_cards];
+            val += round_prob[min(t + round, 18)] / round_prob[min(round, 17)] * (prob2 - prob);
+            prob = prob2;
+        }
+
+
         //dora
         int dora_count = 0, dora_penalty = 0;
         for (int j = 0; j < 34; ++j) { dora_count += dora[j]; }
-        if ((dora[l] >= hand_cnts[l]) && !(l >= 27 && hand_cnts[l] <= 1)) val *= 1.1;
+        if ((dora[l] >= hand_cnts[l]) && !(l >= 27 && hand_cnts[l] <= 1)) val *= 0.9;
         vals.emplace_back(std::make_pair(val,l));
         p++;
     }
@@ -357,21 +369,6 @@ int main() {
     int round = 18 - rest_num / 4;//start with 69 -> 1.end with 0 - 18.
     int choice = decide(hand_cnt, known_remain_cnt,dora,round);
     if(choice == -1) printf("zero\n\n"); else printf("%s\n\n",mname[choice]);
-/*
-    memset(f,0,sizeof(long long int)*16*2*f_len3*MX);
-    int p = 1;
-    int nw = 1;
-    for (int n = 0; n < 34; ++n){
-        if(hand_cnt[n] == 0)continue;
-        printf("%3s ",mname[n]);
-        hand_cnt[n]--;
-        seven(hand_cnt, known_remain_cnt, p, nw, 2);
-        for (int i = 0; i < f_len3; ++i) {
-            printf("%lld\t",f[nw][p][i][2]);
-        }
-        printf("\n");
-        hand_cnt[n]++;
-        ++p;
-    }*/
+
     return choice;
 }
