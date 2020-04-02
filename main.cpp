@@ -20,10 +20,12 @@ double fsum[16][4][2][6][f_len3];
 int dppath[2][MX][5];
 int dpface[2][MX][2];
 double result_norm[f_len3][16];
+double result_duan[f_len3][16];
 double fact[136];
 int tot[2];
-int ting_t = 100;
+int ting_t = 100, ting_d = 100;
 double bestval = -1;
+double purevals[34];
 void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int k){
 
     memset(sevenval,0,sizeof(double)*16*f_len3);
@@ -119,24 +121,16 @@ void seven(const int *hand_cnts, const int *known_remain_cnt,int p, int nw, int 
 }
 
 
-void norm(const int *_hand_cnts, const int *_known_remain_cnt, const int *dora, int round, double result[][16], int maxs, int maxf, int duanflag) {
-    int hand_cnts[35], known_remain_cnt[35];
-    if(duanflag == 0) {
-        memcpy(hand_cnts, _hand_cnts, 35 * sizeof(int));
-        memcpy(known_remain_cnt, _known_remain_cnt, 35 * sizeof(int));
-    }else{
-        memcpy(hand_cnts, _hand_cnts, 35 * sizeof(int));
-        hand_cnts[0] = hand_cnts[8] = hand_cnts[9] = hand_cnts[17] = hand_cnts[18] = hand_cnts[26] = 0;
-        memset(hand_cnts + 27, 0, 7*sizeof(int));
-        memcpy(known_remain_cnt, known_remain_cnt, 35 * sizeof(int));
-        known_remain_cnt[0] = known_remain_cnt[8] = known_remain_cnt[9] = known_remain_cnt[17] = known_remain_cnt[18] = known_remain_cnt[26] = 0;
-        memset(known_remain_cnt + 27, 0, 7*sizeof(int));
-    }
+void norm(const int *hand_cnts, const int *known_remain_cnt, const int *dora, int round, double result[][16], int maxs, int maxf, int duanflag) {
     int remaining_cards = 0;
-    for (int i = 0; i < 34; ++i) remaining_cards += known_remain_cnt[i];
+    for (int i = 0; i < 34; ++i) {
+//        if(duanflag && (i == 0 || i == 8 || i == 9 || i == 17 || i == 18 || i >= 26))continue;
+        remaining_cards += known_remain_cnt[i];
+    }
 
 
     int op = 0;
+    memset(fsum,0,sizeof(double)*f_len3*16*4*2*6);
     for (int s = 0; s < maxs; ++s) {
         int branch_choice_num = 1;
         int dpf = (s == 3 ? 1 : 0);
@@ -155,17 +149,22 @@ void norm(const int *_hand_cnts, const int *_known_remain_cnt, const int *dora, 
                     for (int k = 1; k <= tot[dpf]; ++k) {
                         if ((p == branch_choice_num && hand_cnts[s * 9 + i - 1] > 0) ||
                             f[nw ^ 1][p][j][k] > 0) {
-                            for (int t = known_remain_cnt[s * 9 + i - 1]; t >= 0; --t) {
+                            if(duanflag && (i == 1 || i == 9 || s == 3)){
                                 if (p < branch_choice_num) {
-                                    if (dppath[dpf][k][hand_cnts[s * 9 + i - 1] + t] <= 0 ||
-                                        dppath[dpf][k][hand_cnts[s * 9 + i - 1] + t] > tot[dpf])
-                                        printf("error!");
-                                    f[nw][p][j + t][dppath[dpf][k][hand_cnts[s * 9 + i - 1] + t]] +=
-                                            f[nw ^ 1][p][j][k] * C[known_remain_cnt[s * 9 + i - 1]][t];
+                                    f[nw][p][j][dppath[dpf][k][0]] += f[nw ^ 1][p][j][k];
                                 }
                                 if (p == branch_choice_num) {
-                                    f[nw][p][j + t][dppath[dpf][k][hand_cnts[s * 9 + i - 1] - 1 + t]] +=
-                                            f[nw ^ 1][0][j][k] * C[known_remain_cnt[s * 9 + i - 1]][t];
+                                    f[nw][p][j][dppath[dpf][k][0]] += f[nw ^ 1][0][j][k];
+                                }
+                            } else {
+                                for (int t = known_remain_cnt[s * 9 + i - 1]; t >= 0; --t) {
+                                    int thishand = hand_cnts[s * 9 + i - 1] + t;
+                                    if (p < branch_choice_num) {
+                                        f[nw][p][j + t][dppath[dpf][k][thishand]] += f[nw ^ 1][p][j][k] * C[known_remain_cnt[s * 9 + i - 1]][t];
+                                    }
+                                    if (p == branch_choice_num) {
+                                        f[nw][p][j + t][dppath[dpf][k][thishand - 1]] += f[nw ^ 1][0][j][k] * C[known_remain_cnt[s * 9 + i - 1]][t];
+                                    }
                                 }
                             }
                         }
@@ -187,7 +186,8 @@ void norm(const int *_hand_cnts, const int *_known_remain_cnt, const int *dora, 
         op += (branch_choice_num - 1);
     }
     int p = 1;
-    for (int n = 0; n < 34; ++n) {
+    for (int n = 0; n < 35; ++n) {
+        if(n==34)n=100;
         if (hand_cnts[n] == 0)continue;
         int m[4], t[4];
         for (m[0] = 0; m[0] <= 4; ++m[0]) {
@@ -250,40 +250,65 @@ void norm(const int *_hand_cnts, const int *_known_remain_cnt, const int *dora, 
 //1: no yipai, just duanyao
 //2: have yipai
 int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, int round, int state, int maxf, const int* yi) {
-    printf("r:%d\n",round);
+    if(maxf<4)printf("maxf:%d\n",maxf);
+//    printf("r:%d\n",round);
 
-    int hand_cnts[35];
+    int hand_cnts[101];
     memcpy(hand_cnts, _hand_cnts, 35 * sizeof(int));
+    hand_cnts[100]=1;
     int remaining_cards = 0;
     for (int i = 0; i < 34; ++i) remaining_cards += known_remain_cnt[i];
+    int remaining_cards2 = 0;
+    for (int i = 0; i < 34; ++i) {
+        if(i == 0 || i == 8 || i == 9 || i == 17 || i == 18 || i >= 26)continue;
+        remaining_cards2 += known_remain_cnt[i];
+    }
+//    remaining_cards2 = (remaining_cards2+remaining_cards)/2;
+//    printf("%d %d\n",remaining_cards,remaining_cards2);
 
     memset(result_norm, 0, sizeof(double)*f_len3*16);
+    memset(result_duan, 0, sizeof(double)*f_len3*16);
     if(state != 1)
         norm(hand_cnts, known_remain_cnt, dora, round, result_norm, 4, maxf, 0);
-
-    if(state != 2) {
-        norm(hand_cnts, known_remain_cnt, dora, round, result_norm, 4, maxf, 1);
+    if(state != 2 && (state != 0 || ting_t > 2)) {
+        norm(hand_cnts, known_remain_cnt, dora, round, result_duan, 4, maxf, 1);
     }
+
+    int p = 1;
+    for (int l = 0; l < 34; ++l) if (hand_cnts[l] != 0)++p;
+    for (int t = 0; t < f_len3 - 5; ++t) {
+        if (result_norm[t][p] > 0) ting_t = min(ting_t, t);
+        if (result_duan[t][p] > 0) ting_d = min(ting_d, t);
+    }
+//    printf("%d %d\n",ting_t,ting_d);
+if(ting_t == 100)ting_t = ting_d;
+    if(ting_d == 100)ting_d = ting_t;
+//    printf("%d %d\n",ting_t,ting_d);
+
     double ting_bval = 0; int ting_card = -1;
     double ting_vals[34];
-    int p = 1;
+    p = 1;
     std::vector<std::pair<double, int>> vals;
     for (int l = 0; l < 34; ++l) {
-        printf("l:%d\n",l);
         if(hand_cnts[l]==0)continue;
+        double val0 = 0;
         double val = 0;
         double prob = 0;
+        double prob0 = 0;
         for (int t = 0; t < f_len3 - 5; ++t) {
             double prob2 = result_norm[t][p] * fact[t] * fact[remaining_cards - t] / fact[remaining_cards];
-            if(result_norm[t][p] > 0) ting_t = min(ting_t, t);
-            printf("%lf ",prob2);
+            double prob3 = result_duan[t][p] * fact[t] * fact[remaining_cards2 - t] / fact[remaining_cards2];
+//            printf("%lf %lf ",prob2, prob3);
             val += round_prob[min(t + round, 18)] / round_prob[min(round, 17)] * (prob2 - prob);
+            val0 += round_prob[min(t + round, 18)] / round_prob[min(round, 17)] * (prob2 + prob3 - prob0);
             prob = prob2;
+            prob0 = prob2 + prob3;
         }
+//        printf("%3s %lf %lf\n", mname[l], val, val0);
         ting_vals[l] = result_norm[1][p];
 
         //seven
-        if(maxf == 4) {
+        if(maxf == 4 && state == 0) {
             int nw = 1;
             hand_cnts[l]--;
             seven(hand_cnts, known_remain_cnt, p, nw, 2);
@@ -293,33 +318,40 @@ int decide(const int *_hand_cnts, const int *known_remain_cnt, const int *dora, 
             for (int t = 0; t < f_len3 - 5; ++t) {
                 double prob2 = sevenval[p][t] * fact[remaining_cards - t] / fact[remaining_cards];
                 if(sevenval[p][t] > 0) ting_t = min(ting_t, t);
-                val2 += 2 * round_prob[min(t + round, 18)] / round_prob[min(round, 17)] *
+                val2 += 4 * round_prob[min(t + round, 18)] / round_prob[min(round, 17)] *
                         (prob2 - prob);//seven multiply by 2
                 prob = prob2;
             }
-            printf("%3s %lf %lf\n", mname[l], val, val2);
-            val += val2;
+//            printf("%3s %lf %lf\n", mname[l], val, val2);
+            val0 += val2;
             ting_vals[l] += sevenval[p][1];
         }
 
         //dora
         int dora_count = 0, dora_penalty = 0;
         for (int j = 0; j < 34; ++j) { dora_count += dora[j]; }
-        if ((dora[l] >= hand_cnts[l]) && !(l >= 27 && hand_cnts[l] <= 1)) val *= 0.85, ting_vals[l] *= 0.5;
-        if(state == 0 && yi[l] > 0) val *= (1+0.1*hand_cnts[l]);
+        if (hand_cnts[l]<4 && (dora[l] >= hand_cnts[l]) && !(l >= 27 && hand_cnts[l] <= 1) &&
+                ((l != 0 && l != 8 && l != 9 && l != 17 && l != 18 && l < 26) || state != 1 ))
+            val0 *= (l != 0 && l != 8 && l != 9 && l != 17 && l != 18 && l < 26) && state == 0 ? 0.9 : 0.85, ting_vals[l] *= 0.5;
+        if(state == 0 && yi[l] > 0 && hand_cnts[l]+known_remain_cnt[l]>=3) val0 *= (1-0.05*hand_cnts[l]-(hand_cnts[l]+known_remain_cnt[l] == 4 ? 0.05 : 0));
         if(ting_vals[l] > ting_bval) ting_bval = ting_vals[l],ting_card = l;
 
-        vals.emplace_back(std::make_pair(val,l));
+        vals.emplace_back(std::make_pair(val0,l));
+        purevals[l] = val;
         p++;
     }
     std::sort(vals.begin(),vals.end(),std::greater<>());
     if(vals[0].first > 0)
     {
-        if(ting_vals[vals[0].second] > 0 && ting_card != -1) return ting_card;
+        if(ting_vals[vals[0].second] > 0 && ting_card != -1) {
+            bestval = ting_bval;
+            return ting_card;
+        }
         for (auto i : vals){
-            printf("%s %lf\n",mname[i.second],i.first);
+//            printf("%s %lf\n",mname[i.second],i.first);
         }
         bestval = vals[0].first;
+        if(state != 1)bestval = purevals[vals[0].second];
         return vals[0].second;
     } else return -1;
 }
@@ -358,7 +390,11 @@ int main() {
     int rest_num; fscanf(fin,"%d", &rest_num);
     int state; fscanf(fin,"%d", &state);
     int maxf; fscanf(fin,"%d", &maxf);
-    int hand_cnt[35]; for (int i = 0; i < 34; ++ i) fscanf(fin, "%d", &hand_cnt[i]); hand_cnt[34]=0;
+    int hand_cnt[35]; for (int i = 0; i < 34; ++ i) {
+        fscanf(fin, "%d", &hand_cnt[i]);
+        if(hand_cnt[i]<0)printf("input < 0 ERROR!\n");
+    }
+    hand_cnt[34] = 0;
     int known_remain_cnt[34]; for (int i = 0; i < 34; ++ i) fscanf(fin,"%d", &known_remain_cnt[i]);
     int dora[34]; for (int i = 0; i < 34; ++ i) fscanf(fin,"%d", &dora[i]);
     int yi[34];for (int i = 0; i < 34; ++ i) fscanf(fin,"%d", &yi[i]);
@@ -380,9 +416,11 @@ int main() {
     int round = 18 - rest_num / 4;//start with 69 -> 1.end with 0 - 18.
     int choice = decide(hand_cnt, known_remain_cnt, dora, round, state, maxf, yi);
     if (choice == -1) choice = decide(hand_cnt, known_remain_cnt, dora, round - 1, state, maxf, yi);
-    if (choice != -1) printf("state:%d maxf:%d %s %d %lf\n\n",state,maxf, mname[choice],ting_t,bestval);
+    if (choice == -1) choice = decide(hand_cnt, known_remain_cnt, dora, round - 2, state, maxf, yi);
+//    if (choice != -1) printf("state:%d maxf:%d %s %d %lf\n\n",state,maxf, mname[choice],ting_t,bestval);
     fout = fopen("output.txt","w");
-    fprintf(fout,"%d %d %lf",choice, ting_t,bestval);
+    fprintf(fout,"%d %d %d %lf",choice, ting_t,ting_d,bestval);
+    printf("%d %d %d %lf",choice, ting_t,ting_d,bestval);
     fclose(fout);
     return choice;
 }
